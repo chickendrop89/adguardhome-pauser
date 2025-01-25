@@ -2,13 +2,13 @@
 A daemon that pauses protection if specified websites are accessed.
 
 # What is the point
-Some media websites might refuse to load content if adverising-related domains fail to resolve.
+Some media websites may refuse to load content if advertising-related domains are blocked.
 
-This project aims to temporarily disable the AdGuardHome protection for the client/network,
-when the user-specified domains that have these anti-adblock measures are queried.
+This project aims to temporarily disable AdGuardHome protection for the client/network
+when the user-specified domains with anti-adblock measures are queried.
 
-The function of this project is best showcased on websites that don't show an anti-adblock popup right away, 
-but after selecting some piece of content (ex: unnamed movie websites)
+This functionality is most effective on websites that do not immediately display an anti-adblock popup
+but do so after a user selects some content (e.g., unnamed movie websites 🏴‍☠️).
 
 # Running the daemon:
 Clone the repositroy, and then install requirements:
@@ -65,5 +65,4 @@ nslookup example.com localhost
 Then just observe if the daemon catched the query in the command line.
 
 # Limitations
-If the client/server has high TTL, or there is some kind of local DNS caching on the client-side, 
-the request may not go through AdGuardHome at all, and the daemon can't see, and do anything.
+If the domain is accessed frequently and the client/server has an extremely high TTL, or if there is client-side caching, the query may not go through AdGuardHome at all, preventing the daemon from detecting and acting on it.
