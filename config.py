@@ -6,7 +6,7 @@ ADGUARD_USERNAME = os.environ.get("ADGUARD_USERNAME")
 ADGUARD_PASSWORD = os.environ.get("ADGUARD_PASSWORD")
 
 # Change this to your AdGuard Home instance URL
-ADGUARD_URL = os.environ.get("ADGUARD_URL", default='https://192.168.0.30:443')
+ADGUARD_URL = os.environ.get("ADGUARD_URL", default='https://localhost:443')
 
 # Set to False if you use HTTPS on the web interface without a valid certificate
 ADGUARD_SSL_VERIFY = os.environ.get("ADGUARD_SSL_VERIFY", default=False)
@@ -20,7 +20,7 @@ PAUSERS_FILE = os.environ.get("PAUSERS_FILE", default='pausers.txt')
 PAUSERS_SUBDOMAINS = os.environ.get("PAUSERS_SUBDOMAINS", default=True)
 
 # AdGuardHome protection pause duration in minutes
-PAUSE_DURATION = os.environ.get("PAUSE_DURATION", default=5)
+PAUSE_DURATION = os.environ.get("PAUSE_DURATION", default=20)
 
 # Pause protection for the whole network, or only for the client that accessed the domain
 # The client option is experimental
@@ -32,7 +32,7 @@ QUERY_INTERVAL = os.environ.get("QUERY_INTERVAL", default=5)
 # How many recent queries should be requested from the server
 # Should be increased if you process a lot of queries per second (ex. on large networks)
 # Higher limit = Higher load on the server CPU
-QUERY_LIMIT = os.environ.get("QUERY_LIMIT", default=15)
+QUERY_LIMIT = os.environ.get("QUERY_LIMIT", default=30)
 
 # Required freshness of the processed queries in seconds
 # Don't modify unless needed. Should NOT be higher than QUERY_INTERVAL
