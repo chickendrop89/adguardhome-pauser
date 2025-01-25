@@ -51,7 +51,7 @@ class AdGuardHomeClient:
             logging.error("Error fetching data from %s: %s", endpoint, e)
             return None
 
-    def post(self, endpoint: str, data: dict, timeout: int = QUERY_INTERVAL):
+    def post(self, endpoint: str, data: dict, return_response: bool = True, timeout: int = QUERY_INTERVAL):
         """
         POST request to the AdGuard Home API.
         
@@ -64,7 +64,7 @@ class AdGuardHomeClient:
             response = self.session.post(f'{self.base_url}/{endpoint}', json=data, timeout=timeout)
             response.raise_for_status()
 
-            if response.status_code != 200:
+            if return_response is True:
                 return response.json()
 
             return True
@@ -125,7 +125,9 @@ class AdGuardHome:
                 'name': f'pauser-{client_ip}'
             }
         }.get(action, {})
-        return self.client.post(endpoint, data) is not None
+
+        # AdGuard Home API doesn't return a response on success with these endpoints
+        return self.client.post(endpoint, data, return_response=False) is not None
 
     def pause_protection(self, pause_type: str = "network", client_ip: str = None):
         """
