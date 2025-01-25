@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import time
 import json
 import logging
@@ -9,17 +10,36 @@ from datetime import datetime, timezone
 from pathlib import Path
 import requests
 import urllib3
-
-# TODO: wildcard import is bad practice
-from config import *
-
-if not ADGUARD_USERNAME or not ADGUARD_PASSWORD:
-    raise ValueError("AdGuardHome credentials not set in environment variables.")
+import yaml
 
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(levelname)s - %(message)s'
 )
+
+# Load configurations from config.yaml
+with open('config.yaml', 'r', encoding="utf-8") as file:
+    config = yaml.safe_load(file)
+
+# AdGuard Home API preferences
+ADGUARD_USERNAME   = os.environ.get("ADGUARD_USERNAME") or config['adguard']['username']
+ADGUARD_PASSWORD   = os.environ.get("ADGUARD_PASSWORD") or config['adguard']['password']
+ADGUARD_URL        = os.environ.get("ADGUARD_URL") or config['adguard']['url']
+ADGUARD_SSL_VERIFY = os.environ.get("ADGUARD_SSL_VERIFY") or config['adguard']['ssl_verify']
+
+# Protection pause preferences
+PAUSE_FILE_PATH       = os.environ.get("PAUSE_FILE_PATH") or config['pause']['file_path']
+PAUSE_FILE_SUBDOMAINS = os.environ.get("PAUSE_FILE_SUBDOMAINS") or config['pause']['subdomains']
+PAUSE_DURATION        = os.environ.get("PAUSE_DURATION") or config['pause']['duration']
+PAUSE_TYPE            = os.environ.get("PAUSE_TYPE") or config['pause']['type']
+
+# Query preferences
+QUERY_INTERVAL  = os.environ.get("QUERY_INTERVAL") or config['query']['interval']
+QUERY_LIMIT     = os.environ.get("QUERY_LIMIT") or config['query']['limit']
+QUERY_FRESHNESS = os.environ.get("QUERY_FRESHNESS") or config['query']['freshness']
+
+if not ADGUARD_USERNAME or not ADGUARD_PASSWORD:
+    raise ValueError("AdGuardHome credentials not set in environment variables.")
 
 class AdGuardHomeClient:
     """API client for interacting with AdGuard Home."""
@@ -92,7 +112,10 @@ class AdGuardHome:
         return data.get('data', []) if data else []
 
     def check_persistent_client_existence(self, client_ip: str):
-        """"Check if a persistent client exists via AdGuard Home API."""
+        """"
+        Check if a persistent client exists via AdGuard Home API.
+        :param: client_ip: local IP address of the client to check.
+        """
         data = self.client.post('control/clients/search', {
             'clients': [{"id": f"{client_ip}"}]
         })
@@ -105,6 +128,7 @@ class AdGuardHome:
         """
         Manage a persistent client via AdGuard Home API.
         :param action: can be either 'add', 'update' or 'delete'
+        :param client_ip: local IP address of the client to manage.
         """
 
         endpoint = f'control/clients/{action}'
@@ -132,7 +156,8 @@ class AdGuardHome:
     def pause_protection(self, pause_type: str = "network", client_ip: str = None):
         """
         Pause AdGuard Home protection.
-        :param pause_type: can be either 'network' or 'client'
+        :param pause_type: can be either 'network' or 'client'.
+        :param client_ip: (optional) local IP address of the client to pause protection for.
         """
 
         if pause_type == "client" and client_ip:
@@ -159,15 +184,14 @@ class AdGuardHome:
         Check query log for recent queries to any target domain.
         :param target_domains: List of domains to monitor.
         """
-
         current_time = datetime.now(timezone.utc)
         queries = self.get_recent_queries()
 
         for query in queries:
             query_domain = query['question']['name'].lower()
-            matching_domains = [domain for domain in target_domains if domain_matches(query_domain, domain, PAUSERS_SUBDOMAINS)]
+            matching_domains = [domain for domain in target_domains if domain_matches(query_domain, domain, PAUSE_FILE_SUBDOMAINS)]
             if matching_domains and is_query_fresh(query['time'], current_time, QUERY_FRESHNESS):
-                if PAUSERS_SUBDOMAINS:
+                if PAUSE_FILE_SUBDOMAINS:
                     logging.info("Found fresh query for %s matching %s", query_domain, matching_domains[0])
                 else:
                     logging.info("Found fresh exact domain match for %s", matching_domains[0])
@@ -186,7 +210,10 @@ class AdGuardHome:
         return False
 
 def load_target_domains(file_path: str):
-    """Load target domains from file."""
+    """
+    Load target domains from file.
+    :param file_path: Path to the file containing target domains.
+    """
     try:
         path = Path(file_path)
 
@@ -206,7 +233,7 @@ def load_target_domains(file_path: str):
                 f.write("example.com\n")
 
         logging.info("Loaded %s domains to monitor: %s", len(domains), ', '.join(domains))
-        logging.info("Subdomain matching is %s", 'enabled' if PAUSERS_SUBDOMAINS else 'disabled')
+        logging.info("Subdomain matching is %s", 'enabled' if PAUSE_FILE_SUBDOMAINS else 'disabled')
         return domains
 
     except (PermissionError, OSError) as e:
@@ -214,7 +241,10 @@ def load_target_domains(file_path: str):
         return ["example.com"]
 
 def parse_timestamp(timestamp_str: str):
-    """Parse timestamp string to datetime object."""
+    """
+    Parse timestamp string to datetime object.
+    :param timestamp_str: The timestamp string to parse.
+    """
     try:
         return datetime.fromisoformat(timestamp_str)
     except ValueError as e:
@@ -222,7 +252,12 @@ def parse_timestamp(timestamp_str: str):
         return None
 
 def is_query_fresh(query_time_str: str, current_time: int, max_age_seconds: int):
-    """Check if the query is within the freshness window."""
+    """
+    Check if the query is within the freshness window.
+    :param query_time_str: The timestamp of the query.
+    :param current_time: The current time in seconds.
+    :param max_age_seconds: The maximum age of the query in seconds.
+    """
     query_time = parse_timestamp(query_time_str)
 
     if query_time is None:
@@ -234,8 +269,13 @@ def is_query_fresh(query_time_str: str, current_time: int, max_age_seconds: int)
     time_diff = (current_time - query_time).total_seconds()
     return 0 <= time_diff <= max_age_seconds
 
-def domain_matches(query_domain: str, target_domain: str, allow_subdomains: str):
-    """Check if a query domain matches a target domain."""
+def domain_matches(query_domain: str, target_domain: str, allow_subdomains: bool):
+    """
+    Check if a query domain matches a target domain.
+    :param query_domain: The domain from the query.
+    :param target_domain: The target domain to match against.
+    :param allow_subdomains: Whether to allow subdomains in the match.
+    """
     if allow_subdomains:
         return query_domain.endswith('.' + target_domain) or query_domain == target_domain
     else:
@@ -253,15 +293,15 @@ def main():
         logging.warning("Current block TTL is above 2 minutes! (currently: %ss)", adguard_block_ttl)
         logging.warning("This will minimize the usefulness of the daemon")
 
-    target_domains = load_target_domains(PAUSERS_FILE)
-    last_mtime = Path(PAUSERS_FILE).stat().st_mtime
+    target_domains = load_target_domains(PAUSE_FILE_PATH)
+    last_mtime = Path(PAUSE_FILE_PATH).stat().st_mtime
 
     while True:
         try:
-            current_mtime = Path(PAUSERS_FILE).stat().st_mtime
+            current_mtime = Path(PAUSE_FILE_PATH).stat().st_mtime
             if current_mtime != last_mtime:
                 logging.info("Domains file changed, reloading...")
-                target_domains = load_target_domains(PAUSERS_FILE)
+                target_domains = load_target_domains(PAUSE_FILE_PATH)
                 last_mtime = current_mtime
 
             adguard.check_queries(target_domains)

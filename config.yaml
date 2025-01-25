@@ -1,0 +1,36 @@
+adguard:
+  username: # EXPORT AS ENVIRONMENT VARIABLE!
+  password: # EXPORT AS ENVIRONMENT VARIABLE!
+
+# Change this to your AdGuardHome server URL
+  url: https://192.168.0.30:443
+
+# Set to False if you use HTTPS on the web interface without a valid certificate
+  ssl_verify: false
+
+pause:
+# File containing domains to monitor (absolute path - if not in project root)
+  file_path: pausers.txt
+
+# Whenever to match all subdomains of the targeted domains as well
+# Set to False if you only want to pause when exact domains are accessed
+  subdomains: true
+
+# AdGuardHome protection pause duration in minutes
+  duration: 20
+
+# Pause protection for the whole 'network', or only for the 'client' that accessed the domain
+# The 'client' option is wip/experimental, and will wipe the persistent client profile
+  type: network
+
+query:
+# How often to poll query log from the server in seconds
+  interval: 5
+
+# How many recent queries should be requested from the server
+# Should be increased if you process a lot of queries per second (e.g, on large networks)
+  limit: 30
+
+# Required freshness of the processed queries in seconds
+# Don't modify unless needed. Should NOT be higher than query:interval
+  freshness: ${interval}
