@@ -3,7 +3,7 @@ adguard:
   password: # EXPORT AS ENVIRONMENT VARIABLE!
 
 # Change this to your AdGuardHome server URL
-  url: https://192.168.0.30:443
+  url: https://localhost:443
 
 # Set to False if you use HTTPS on the web interface without a valid certificate
   ssl_verify: false
