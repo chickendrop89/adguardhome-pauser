@@ -36,7 +36,6 @@ PAUSE_TYPE            = os.environ.get("PAUSE_TYPE") or config['pause']['type']
 # Query preferences
 QUERY_INTERVAL  = os.environ.get("QUERY_INTERVAL") or config['query']['interval']
 QUERY_LIMIT     = os.environ.get("QUERY_LIMIT") or config['query']['limit']
-QUERY_FRESHNESS = os.environ.get("QUERY_FRESHNESS") or config['query']['freshness']
 
 if not ADGUARD_USERNAME or not ADGUARD_PASSWORD:
     raise ValueError("AdGuardHome credentials not set in environment variables.")
@@ -190,7 +189,7 @@ class AdGuardHome:
         for query in queries:
             query_domain = query['question']['name'].lower()
             matching_domains = [domain for domain in target_domains if domain_matches(query_domain, domain, PAUSE_FILE_SUBDOMAINS)]
-            if matching_domains and is_query_fresh(query['time'], current_time, QUERY_FRESHNESS):
+            if matching_domains and is_query_fresh(query['time'], current_time, QUERY_INTERVAL):
                 if PAUSE_FILE_SUBDOMAINS:
                     logging.info("Found fresh query for %s matching %s", query_domain, matching_domains[0])
                 else:

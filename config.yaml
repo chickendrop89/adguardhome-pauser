@@ -30,7 +30,3 @@ query:
 # How many recent queries should be requested from the server
 # Should be increased if you process a lot of queries per second (e.g, on large networks)
   limit: 30
-
-# Required freshness of the processed queries in seconds
-# Don't modify unless needed. Should NOT be higher than query:interval
-  freshness: ${interval}
