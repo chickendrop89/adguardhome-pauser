@@ -34,13 +34,13 @@ python ./daemon.py
 ```
 
 #### Help, the daemon doesn't catch my queries!
-- Try to tune the `QUERY`-related variables.
-- It's best to start with increasing the `QUERY_LIMIT`, 
-and reducing the `QUERY_INTERVAL` until you find the ideal values.
+- Try to tune the `query`-related variables.
+- It's best to start with increasing the `query:limit`, 
+and reducing the `query:interval` until you find the ideal values.
 
 #### Format of the "pausers" file
 - The parser expects every website to be on it's own line.
-- Wildcards are not supported, refer to `PAUSERS_SUBDOMAINS` instead.
+- Wildcards are not supported, refer to `pause:subdomains` instead.
 - Regex is not supported.
 
 # Testing the daemon
