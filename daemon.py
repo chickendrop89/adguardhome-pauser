@@ -5,7 +5,6 @@ import time
 import json
 import logging
 import threading
-from typing import List
 from datetime import datetime, timezone
 from pathlib import Path
 import requests
@@ -18,27 +17,27 @@ logging.basicConfig(
 )
 
 # Load configurations from config.yaml
-with open('config.yaml', 'r', encoding="utf-8") as file:
+with open('config.yaml', 'r', encoding='utf-8') as file:
     config = yaml.safe_load(file)
 
 # AdGuard Home API preferences
-ADGUARD_USERNAME   = os.environ.get("ADGUARD_USERNAME") or config['adguard']['username']
-ADGUARD_PASSWORD   = os.environ.get("ADGUARD_PASSWORD") or config['adguard']['password']
-ADGUARD_URL        = os.environ.get("ADGUARD_URL") or config['adguard']['url']
-ADGUARD_SSL_VERIFY = os.environ.get("ADGUARD_SSL_VERIFY") or config['adguard']['ssl_verify']
+ADGUARD_USERNAME   = os.environ.get('ADGUARD_USERNAME') or config['adguard']['username']
+ADGUARD_PASSWORD   = os.environ.get('ADGUARD_PASSWORD') or config['adguard']['password']
+ADGUARD_URL        = os.environ.get('ADGUARD_URL') or config['adguard']['url']
+ADGUARD_SSL_VERIFY = os.environ.get('ADGUARD_SSL_VERIFY') or config['adguard']['ssl_verify']
 
 # Protection pause preferences
-PAUSE_FILE_PATH       = os.environ.get("PAUSE_FILE_PATH") or config['pause']['file_path']
-PAUSE_FILE_SUBDOMAINS = os.environ.get("PAUSE_FILE_SUBDOMAINS") or config['pause']['subdomains']
-PAUSE_DURATION        = os.environ.get("PAUSE_DURATION") or config['pause']['duration']
-PAUSE_TYPE            = os.environ.get("PAUSE_TYPE") or config['pause']['type']
+PAUSE_FILE_PATH       = os.environ.get('PAUSE_FILE_PATH') or config['pause']['file_path']
+PAUSE_FILE_SUBDOMAINS = os.environ.get('PAUSE_FILE_SUBDOMAINS') or config['pause']['subdomains']
+PAUSE_DURATION        = os.environ.get('PAUSE_DURATION') or config['pause']['duration']
+PAUSE_TYPE            = os.environ.get('PAUSE_TYPE') or config['pause']['type']
 
 # Query preferences
-QUERY_INTERVAL  = os.environ.get("QUERY_INTERVAL") or config['query']['interval']
-QUERY_LIMIT     = os.environ.get("QUERY_LIMIT") or config['query']['limit']
+QUERY_INTERVAL  = os.environ.get('QUERY_INTERVAL') or config['query']['interval']
+QUERY_LIMIT     = os.environ.get('QUERY_LIMIT') or config['query']['limit']
 
 if not ADGUARD_USERNAME or not ADGUARD_PASSWORD:
-    raise ValueError("AdGuardHome credentials not set in environment variables.")
+    raise ValueError('AdGuardHome credentials not set in environment variables.')
 
 class AdGuardHomeClient:
     """API client for interacting with AdGuard Home."""
@@ -67,7 +66,7 @@ class AdGuardHomeClient:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            logging.error("Error fetching data from %s: %s", endpoint, e)
+            logging.error('Error fetching data from %s: %s', endpoint, e)
             return None
 
     def post(self, endpoint: str, data: dict, return_response: bool = True, timeout: int = QUERY_INTERVAL):
@@ -76,19 +75,21 @@ class AdGuardHomeClient:
         
         :param endpoint: The API endpoint to send the request to.
         :param data: The data payload to include in the request.
+        :param return_response: (optional) Whether to return the JSON response data.
         :param timeout: (optional) The request timeout duration in seconds.
-        :return: True if the request is successful, otherwise the JSON response data or False.
+        :return: boolean or JSON response data, depending on return_response.
         """
         try:
             response = self.session.post(f'{self.base_url}/{endpoint}', json=data, timeout=timeout)
             response.raise_for_status()
 
+            # Should be 'False' on requests that expect empty JSON response
             if return_response is True:
                 return response.json()
 
             return True
         except requests.exceptions.RequestException as e:
-            logging.error("Error posting data to %s: %s", endpoint, e)
+            logging.error('Error posting data to %s: %s', endpoint, e)
             return False
 
 class AdGuardHome:
@@ -111,17 +112,17 @@ class AdGuardHome:
         return data.get('data', []) if data else []
 
     def check_persistent_client_existence(self, client_ip: str):
-        """"
+        """
         Check if a persistent client exists via AdGuard Home API.
-        :param: client_ip: local IP address of the client to check.
+        :param client_ip: local IP address of the client to check.
         """
         data = self.client.post('control/clients/search', {
-            'clients': [{"id": f"{client_ip}"}]
+            'clients': [{'id': f'{client_ip}'}]
         })
 
         # AdGuard Home doesn't provide an API to check existence of persistent client
         # Do this workaround. whois_info appears as a field only when requested non-existing client:
-        return "whois_info" not in json.dumps(data) if data else False
+        return 'whois_info' not in json.dumps(data) if data else False
 
     def manage_persistent_client(self, action: str, client_ip: str):
         """
@@ -152,33 +153,34 @@ class AdGuardHome:
         # AdGuard Home API doesn't return a response on success with these endpoints
         return self.client.post(endpoint, data, return_response=False) is not None
 
-    def pause_protection(self, pause_type: str = "network", client_ip: str = None):
+    def pause_protection(self, pause_type: str = 'network', client_ip: str = None):
         """
         Pause AdGuard Home protection.
         :param pause_type: can be either 'network' or 'client'.
         :param client_ip: (optional) local IP address of the client to pause protection for.
         """
 
-        if pause_type == "client" and client_ip:
+        if pause_type == 'client' and client_ip:
             # Set a background timer to delete the client after PAUSE_DURATION
             threading.Timer(
                 PAUSE_DURATION * 60,  # Convert minutes to seconds
                 self.manage_persistent_client, args=['delete', client_ip]
             ).start()
 
-            logging.info("Successfully paused AdGuard Home protection of %s for %s minutes", client_ip, PAUSE_DURATION)
+            logging.info('Successfully paused AdGuard Home protection of %s for %s minutes', client_ip, PAUSE_DURATION)
         else:
             # Pause network protection for the specified duration
             if self.client.post('control/protection', {
                 'enabled': False,
                 'duration': PAUSE_DURATION * 60 * 1000  # Convert minutes to milliseconds
-                }):
+                }, return_response=False # Don't try to parse the empty json response
+                ):
 
-                logging.info("Successfully paused AdGuard Home protection for %s minutes", PAUSE_DURATION)
+                logging.info('Successfully paused AdGuard Home protection for %s minutes', PAUSE_DURATION)
 
         return True
 
-    def check_queries(self, target_domains: List[str]):
+    def check_queries(self, target_domains: list[str]):
         """
         Check query log for recent queries to any target domain.
         :param target_domains: List of domains to monitor.
@@ -188,12 +190,16 @@ class AdGuardHome:
 
         for query in queries:
             query_domain = query['question']['name'].lower()
-            matching_domains = [domain for domain in target_domains if domain_matches(query_domain, domain, PAUSE_FILE_SUBDOMAINS)]
+            matching_domains = [
+                domain for domain in target_domains
+                if domain_matches(query_domain, domain, PAUSE_FILE_SUBDOMAINS)
+            ]
+
             if matching_domains and is_query_fresh(query['time'], current_time, QUERY_INTERVAL):
                 if PAUSE_FILE_SUBDOMAINS:
-                    logging.info("Found fresh query for %s matching %s", query_domain, matching_domains[0])
+                    logging.info('Found fresh query for %s matching %s', query_domain, matching_domains[0])
                 else:
-                    logging.info("Found fresh exact domain match for %s", matching_domains[0])
+                    logging.info('Found fresh exact domain match for %s', matching_domains[0])
 
                 if PAUSE_TYPE == 'client':
                     query_client = query['client']
@@ -217,27 +223,27 @@ def load_target_domains(file_path: str):
         path = Path(file_path)
 
         if not path.exists():
-            logging.warning("Pausers file %s not found. Creating one with example domain", file_path)
-            with open(path, 'w', encoding="utf-8") as f:
-                f.write("example.com\n")
-            return ["example.com"]
+            logging.warning('Pausers file %s not found. Creating one with example domain', file_path)
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write('example.com\n')
+            return ['example.com']
 
-        with open(path, 'r', encoding="utf-8") as f:
+        with open(path, 'r', encoding='utf-8') as f:
             domains = [line.strip().lower() for line in f if line.strip()]
 
         if not domains:
-            logging.warning("No domains found in the pausers file. Appending an example domain")
-            domains = ["example.com"]
-            with open(path, 'w', encoding="utf-8") as f:
-                f.write("example.com\n")
+            logging.warning('No domains found in the pausers file. Appending an example domain')
+            domains = ['example.com']
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write('example.com\n')
 
-        logging.info("Loaded %s domains to monitor: %s", len(domains), ', '.join(domains))
-        logging.info("Subdomain matching is %s", 'enabled' if PAUSE_FILE_SUBDOMAINS else 'disabled')
+        logging.info('Loaded %s domains to monitor: %s', len(domains), ', '.join(domains))
+        logging.info('Subdomain matching is %s', 'enabled' if PAUSE_FILE_SUBDOMAINS else 'disabled')
         return domains
 
-    except (PermissionError, OSError) as e:
-        logging.error("Error loading domains file: %s", e)
-        return ["example.com"]
+    except OSError as e:
+        logging.error('Error loading domains file: %s', e)
+        return ['example.com']
 
 def parse_timestamp(timestamp_str: str):
     """
@@ -247,7 +253,7 @@ def parse_timestamp(timestamp_str: str):
     try:
         return datetime.fromisoformat(timestamp_str)
     except ValueError as e:
-        logging.error("Error parsing timestamp: %s", e)
+        logging.error('Error parsing timestamp: %s', e)
         return None
 
 def is_query_fresh(query_time_str: str, current_time: int, max_age_seconds: int):
@@ -282,15 +288,15 @@ def domain_matches(query_domain: str, target_domain: str, allow_subdomains: bool
 
 def main():
     """Main daemon code."""
-    logging.info("Starting AdGuard Home query monitor")
+    logging.info('Starting AdGuard Home query monitor')
 
     adguard_api_client = AdGuardHomeClient(ADGUARD_URL, ADGUARD_USERNAME, ADGUARD_PASSWORD)
     adguard = AdGuardHome(adguard_api_client)
     adguard_block_ttl = adguard.get_dns_block_ttl()
 
     if adguard_block_ttl > 120:
-        logging.warning("Current block TTL is above 2 minutes! (currently: %ss)", adguard_block_ttl)
-        logging.warning("This will minimize the usefulness of the daemon")
+        logging.warning('Current block TTL is above 2 minutes! (currently: %ss)', adguard_block_ttl)
+        logging.warning('This will minimize the usefulness of the daemon')
 
     target_domains = load_target_domains(PAUSE_FILE_PATH)
     last_mtime = Path(PAUSE_FILE_PATH).stat().st_mtime
@@ -299,7 +305,7 @@ def main():
         try:
             current_mtime = Path(PAUSE_FILE_PATH).stat().st_mtime
             if current_mtime != last_mtime:
-                logging.info("Domains file changed, reloading...")
+                logging.info('Domains file changed, reloading...')
                 target_domains = load_target_domains(PAUSE_FILE_PATH)
                 last_mtime = current_mtime
 
@@ -307,11 +313,11 @@ def main():
             time.sleep(QUERY_INTERVAL)
 
         except KeyboardInterrupt:
-            logging.info("Stopping monitor...")
+            logging.info('Stopping monitor...')
             break
-        except (PermissionError, OSError) as e:
-            logging.error("Unexpected error: %s", e)
+        except OSError as e:
+            logging.error('Unexpected error: %s', e)
             time.sleep(QUERY_INTERVAL)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
