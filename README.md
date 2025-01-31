@@ -5,7 +5,7 @@ A daemon that pauses protection if specified websites are accessed.
 Some media websites may refuse to load content if advertising-related domains are blocked.
 
 This project aims to temporarily disable AdGuardHome protection for the client/network
-when the user-specified domains with anti-adblock measures are queried.
+when the user-specified domains with anti-adblock javascript/measures are queried.
 
 This functionality is most effective on websites that do not immediately display an anti-adblock popup
 but do so after a user selects some content (e.g., unnamed movie websites 🏴‍☠️).
@@ -16,9 +16,9 @@ Clone the repositroy, and then install requirements:
 pip install -r requirements.txt
 ```
 
-Open your editor of choice, and edit `config.py`:
+Open your editor of choice, and edit `config.yaml`:
 ```shell
-nano config.py
+nano config.yaml
 ```
 
 AdGuard credentials need to be exported as environment variables.
